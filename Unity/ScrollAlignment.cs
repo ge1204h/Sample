@@ -109,4 +109,123 @@ public class ScrollAlignment
 			sv.MoveRelative( new Vector3( -moveX, 0f, 0f ) );
 		}
 	}
+
+	//!< 이동 이후 Refresh 하기위해 수정
+	private float currPosX = 0;
+	private float movePosX = 0;
+	private void MoveScroll( Pivot pivot, UIScrollView sv, UIGrid grid, int itemWidth, int maxCount, int index, bool refresh = false )
+	{
+		if( null != sv )
+		{
+			currPosX = sv.panel.finalClipRegion.x;
+			sv.ResetPosition();
+
+			float maxSize = grid.cellWidth * missionMaxCount - ( grid.cellWidth - itemWidth );
+			float outSize = sv.panel.width / maxSize; //!< 아웃되는 범위
+			float halfOutSize = outSize / 2; //!< 반쪽 ) 아웃되는 범위
+			float itemX = 0;
+			float normalize = 0;
+			float moveX = 0.0f;
+
+			switch( pivot )
+			{
+				case Pivot.Left:
+					itemX = grid.cellWidth * index;
+					break;
+				case Pivot.Middle:
+					itemX = grid.cellWidth * index + ( itemWidth / 2 ); //!< 아이템 중심 중간으로 변경
+					break;
+				case Pivot.Right:
+					itemX = grid.cellWidth * index + itemWidth; //!< 아이템 중심 우측으로 변경
+					break;
+				default:
+					break;
+			}
+
+			if( itemX <= 0 )
+				itemX = 0;
+
+			normalize = itemX / maxSize;
+
+			switch( pivot )
+			{
+				case Pivot.Left:
+					{
+						if( normalize <= ( 1 - outSize ) )
+						{
+							moveX = normalize * maxSize; //!< 왼
+						}
+						else
+						{
+							if( normalize > outSize )
+								moveX = maxSize * ( 1 - outSize );
+						}
+					}
+					break;
+				case Pivot.Middle:
+					{
+						if( halfOutSize <= normalize && normalize <= ( 1 - halfOutSize ) )
+						{
+							moveX = ( normalize - halfOutSize ) * maxSize; //!< 중앙
+						}
+						else
+						{
+							if( normalize > halfOutSize )
+								moveX = maxSize * ( 1 - outSize );
+						}
+					}
+					break;
+				case Pivot.Right:
+					{
+						if( outSize <= normalize )
+						{
+							moveX = ( normalize - outSize ) * maxSize; //!< 오른쪽
+						}
+						else
+						{
+							if( normalize > outSize )
+								moveX = maxSize * ( 1 - outSize );
+						}
+					}
+					break;
+				default:
+					break;
+			}
+
+			movePosX = moveX;
+
+			if( refresh == false )
+			{
+				sv.MoveRelative( new Vector3( -moveX, 0f, 0f ) );
+			}
+			else
+				StartCoroutine( MoveScroll() );
+		}
+	}
+
+	private IEnumerator MoveScroll()
+	{
+		float dt = 10.0f;
+		float t = 0.0f;
+
+		sv.MoveRelative( new Vector3( -currPosX, 0f, 0f ) );
+		float move = ( movePosX - currPosX ) / dt; //!< 일정 시간동안 이동 범위(변동) 이동
+
+		while( t < 1.0f )
+		{
+			sv.MoveRelative( new Vector3( -move, 0, 0 ) );
+
+			t += 0.1f;
+			yield return null;
+		}
+
+		RefreshItem(); //!< 다음 이펙트 on
+	}
+	public void RefreshItem()
+	{
+		foreach( var item in lst )
+		{
+			item.Refresh();
+		}
+	}
 }
